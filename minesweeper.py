@@ -3,7 +3,7 @@ import turtle
 
 def setup():
     size_x, size_y = 20, 16
-    size = 70
+    size = 50
     bombs_left = 50
     screen = turtle.Screen()
     screen.setup(width=size_x*size, height=(size_y+1)*size)
