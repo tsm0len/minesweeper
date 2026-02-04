@@ -1,14 +1,20 @@
 import random
 import turtle
-
+import time
 def setup():
-    size_x, size_y = 20, 16
     size = 50
-    bombs_left = 50
     screen = turtle.Screen()
-    screen.setup(width=size_x*size, height=(size_y+1)*size)
+
+    n = screen.textinput("Size","Board Size (e.g. 12x10): ")
+    n = "12x10" if n == None else n
+    size_x, size_y = list(int(i) for i in n.split("x"))
+    bombs_left = size_x*size_y//6
+    
+    screen.setup(width=(size_x+0.8)*size, height=(size_y+1.8)*size)
+    screen.title("Minesweeper")
     t = turtle.Turtle()
     return t, screen, size, size_x, size_y, bombs_left
+
 t, screen, size, size_x, size_y, bombs_left = setup()
 del setup
 
@@ -17,7 +23,7 @@ screen.colormode(255)
 t.hideturtle()
 
 #generates number board and state board
-def gen_board(width:int, height:int, amount:int, start:tuple[int, int]=(0, 0)) :
+def gen_board(width:int, height:int, amount:int) -> tuple[list[list[int]], list[list[str]], tuple[int, int]]:
 
     board_num = [[0]*width for _ in range(height)]
     board_state = [["closed"]*width for _ in range(height)] #closed, flagged, open
@@ -38,12 +44,17 @@ def gen_board(width:int, height:int, amount:int, start:tuple[int, int]=(0, 0)) :
                 if xx!=-1 and yy!=-1 and xx<size_x and yy<size_y:       
                     if board_num[yy][xx]!=-1:
                         board_num[yy][xx]+=1
-                        
-    return board_num, board_state
+    zero_cells = []
+    for cell in available:
+        if board_num[cell[1]][cell[0]] == 0:
+            zero_cells.append(cell)
+    starting_cell = random.choice(zero_cells)
+    # board_state[starting_cell[1]][starting_cell[0]] = "open"
+    # 
+    return board_num, board_state, starting_cell
 
 
-board_num, board_state = gen_board(size_x, size_y, bombs_left)
-del gen_board
+board_num, board_state, starting_cell = gen_board(size_x, size_y, bombs_left)
 
 
 def win_detection(board_num=board_num, board_state=board_state) -> bool:
@@ -54,13 +65,13 @@ def win_detection(board_num=board_num, board_state=board_state) -> bool:
     return True
 
 mouse_pos = [0, 0]
-def l_click(x, y):
+def l_click(x, y) -> None:
     click_action(x, y, "l")
-def r_click(x, y):
+def r_click(x, y) -> None:
     click_action(x, y, "r")
     
     
-def click_action(x:float, y:float, btn, cell=None):
+def click_action(x:float, y:float, btn, cell=None) -> None:
     global mouse_pos
     global board_state
     global bombs_left
@@ -92,13 +103,15 @@ def click_action(x:float, y:float, btn, cell=None):
     if bombs_left == 0:
         if win_detection():
             print("YOU WON")
+            screen.reset()
+            t.write("You won!", align="center", font=("Courier New", (int(size/3)), "bold"))
             turtle.exitonclick()
 
 COLORS = {
     "text":"#000000",
     "borders":"#000000",
-    "F":"#FF0000",
-    "B":"#FF00E1",
+    "F":"#FF0000", #flag
+    "O":"#000000", #bomb
     "0":"#AEAEAE",
     "1":"#3032C4",
     "2":"#0A8110",
@@ -110,48 +123,49 @@ COLORS = {
     "8":"#494848"
 }
 
-def draw_board_on_screen(board_num=board_num, board_state=board_state, size_x=size_x, size_y=size_y, cell_size=size, bombs_left=bombs_left):
+def draw_board_on_screen(board_num=board_num, board_state=board_state, size_x=size_x, size_y=size_y, cell_size=size, bombs_left=bombs_left) -> None:
     t.clear()
     screen.tracer(False)
     for y in range(size_y):
         for x in range(size_x):
             t.penup()
-            t.goto((x-(size_x/2))*cell_size, ((size_y-1)/2-y)*cell_size)
-            t.pendown()
+            t.goto((x-(size_x/2))*cell_size, ((size_y-1)/2-y)*cell_size) #goto top left cell's corner
             t.color(COLORS["borders"])
+            t.pendown() #draw borders
             for _ in range(4):
                 t.forward(cell_size)
                 t.left(90)
             t.penup()
             t.forward(cell_size)
-            t.left(90)
-            t.forward(cell_size/2)
+            t.left(90) #go to bottom middle to write
+            t.forward(cell_size/2) 
         
             match board_state[y][x]:
                 case "open":
                     num = board_num[y][x]
-                    num = "B" if num == -1 else num
+                    num = "O" if num == -1 else num
                     t.color(COLORS[str(num)])
-                    t.write(str(num), align="center", font=("Courier New", (int(cell_size/1.5)), "bold"))
+                    t.write(str(num), align="center", font=("Courier New", (int(cell_size/1.5)), "bold")) # write number for open cell
                 case "closed":
                     ...
                 case "flagged":
                     t.color(COLORS["F"])
-                    t.write("X", align="center", font=("Courier New", (int(cell_size/1.5)), "bold"))
+                    t.write("X", align="center", font=("Courier New", (int(cell_size/1.5)), "bold")) # draw X as flag
             t.backward(cell_size)
             t.right(90)
-            t.back(cell_size/2)
+            t.back(cell_size/2) #come back to top left corner
     t.color(COLORS["text"])
     t.goto(0, cell_size*size_y/2)
     t.write(f"Bombs left: {bombs_left}", align="center", font=("Courier New", (int(cell_size/3)), "bold"))
 
     screen.update()
 
-draw_board_on_screen()
+draw_board_on_screen() #initial rendering
+click_action(0, 0, "l", starting_cell)
+
 
 turtle.onscreenclick(l_click, 1)
 turtle.onscreenclick(r_click, 3)
 
 turtle.listen()
-turtle.mainloop()
-turtle.done()
+turtle.mainloop() #just has to be at the end
